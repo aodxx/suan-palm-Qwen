@@ -4,7 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
-  root.PP_BUILD = 'v3.8';
+  root.PP_BUILD = 'v3.10';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -1008,8 +1008,8 @@ M.map().on('mousemove', function (e) {
       M.refreshAll();
       A.refreshAll();
       A.setTool('select');
-      // ค้าง modeBanner ตอนแรกซ่อน
       $('modeBanner').hidden = true;
+      A.booted = true; // สัญญาณให้นักทดสอบ/automator รู้ว่าพร้อมเต็มสูตร
     });
   }
 
