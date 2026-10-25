@@ -4,7 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
-  root.PP_BUILD = 'v3.5';
+  root.PP_BUILD = 'v3.6';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -133,7 +133,6 @@
   function mapClickLatlng(e) { return [e.latlng.lat, e.latlng.lng]; }
 
   M.onMapPolyClick = function (plotId, ll, e) {
-    if (['addTree', 'moveTree', 'delTree', 'pickOrigin'].indexOf(A.tool) >= 0 && e) L.DomEvent.stop(e);
     switch (A.tool) {
       case 'select': S.select(plotId); break;
       case 'addTree': addTreeAt(ll, plotId); break;

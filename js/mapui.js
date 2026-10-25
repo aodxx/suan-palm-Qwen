@@ -85,10 +85,9 @@
       m.on('click', function (e) {
         var app = root.PalmApp;
         var tl = app ? app.tool : 'select';
-        // single-source-of-truth: ตอนวาด หรือโหมดชี้ตำแหน่ง → ปล่อย click bubble ขึ้น map (ใช้ latlng ดิบ)
-        if (!(tl === 'delTree' || (tl === 'moveTree' && !app.moveArmed()))) {
-          return;
-        }
+        // consume เฉพาะโหมดจัดการต้นตรงตัว; ที่เหลือปล่อย bubbling ให้ map hub
+        var consume = (tl === 'select' || tl === 'delTree' || (tl === 'moveTree' && app.moveArmed && !app.moveArmed()));
+        if (!consume) return; // addTree, pickOrigin, moveTree(armed), ขณะวาด → raw latlng ถึง map
         if (M.onTreeClick) {
           L.DomEvent.stopPropagation(e);
           M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
@@ -116,9 +115,9 @@
     poly.on('click', function (e) {
       var app = root.PalmApp;
       var tl = app ? app.tool : 'select';
-      if (['addTree', 'pickOrigin', 'moveTree'].indexOf(tl) >= 0 && !(tl === 'moveTree' && app.moveArmed && app.moveArmed())) tl = 'select';
-      // moveTree armed → จับที่ map (ต้องได้ latlng ดิบ) — ถ้า belum armed → arming ก็ map; ปล่อย bubbling เสมอ
-      if (['addTree', 'pickOrigin', 'moveTree'].indexOf(tl) >= 0 || (app && app.isDrawingPt && app.isDrawingPt())) return;
+      //single source of truth: โหมดชี้ตำแหน่ง/ขณะวาด → bubbling ขึ้น map hub (latlng ดิบ)
+      if (['addTree', 'pickOrigin', 'moveTree'].indexOf(tl) >= 0) return;
+      if (app && app.isDrawingPt && app.isDrawingPt()) return;
       if (M.onMapPolyClick) M.onMapPolyClick(p.id, [e.latlng.lat, e.latlng.lng], e);
     });
     plotLayer.addLayer(poly);
