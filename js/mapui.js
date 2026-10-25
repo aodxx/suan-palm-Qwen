@@ -83,8 +83,13 @@
       });
       m.__pid = q.id; m.__plotId = p.id; m.__ll = [q.lat, q.lng];
       m.on('click', function (e) {
+        var app = root.PalmApp;
+        var tl = app ? app.tool : 'select';
+        // single-source-of-truth: ตอนวาด หรือโหมดชี้ตำแหน่ง → ปล่อย click bubble ขึ้น map (ใช้ latlng ดิบ)
+        if (!(tl === 'delTree' || (tl === 'moveTree' && !app.moveArmed()))) {
+          return;
+        }
         if (M.onTreeClick) {
-          // ทุกโหมดรวม addTree/pickOrigin: p้อนเข้า onTreeClick พร้อมพิกัด (map click จะไม่ fire เมื่อ canvas จับโดน)
           L.DomEvent.stopPropagation(e);
           M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
         }
@@ -109,6 +114,11 @@
     });
     poly.__plotId = p.id;
     poly.on('click', function (e) {
+      var app = root.PalmApp;
+      var tl = app ? app.tool : 'select';
+      if (['addTree', 'pickOrigin', 'moveTree'].indexOf(tl) >= 0 && !(tl === 'moveTree' && app.moveArmed && app.moveArmed())) tl = 'select';
+      // moveTree armed → จับที่ map (ต้องได้ latlng ดิบ) — ถ้า belum armed → arming ก็ map; ปล่อย bubbling เสมอ
+      if (['addTree', 'pickOrigin', 'moveTree'].indexOf(tl) >= 0 || (app && app.isDrawingPt && app.isDrawingPt())) return;
       if (M.onMapPolyClick) M.onMapPolyClick(p.id, [e.latlng.lat, e.latlng.lng], e);
     });
     plotLayer.addLayer(poly);

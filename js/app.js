@@ -4,7 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
-  root.PP_BUILD = 'v3.4';
+  root.PP_BUILD = 'v3.5';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -177,6 +177,11 @@
     var p = S.selected();
     if (!target || S.tool === 'addTree') target = p;
     if (!target) { A.toast('เลือกแปลงก่อน (แท็บ แปลง)', 'warn'); return; }
+    // กันวางต้นซ้ำตำแหน่งเดิมเป๊ะ (แตะทับต้นในโหมดเพิ่ม)
+    var prj = projRings(target);
+    var ptc = prj.proj.toXY(ll[0], ll[1]);
+    var nearPt = target.points.filter(function (q) { var o = prj.proj.toXY(q.lat, q.lng); return Math.hypot(o.x - ptc.x, o.y - ptc.y) < 0.5; })[0];
+    if (nearPt) { A.toast('ตรงนี้ มีต้นอยู่แล้ว (#' + nearPt.id + ') — ลองแตะตำแหน่งอื่น', 'warn'); return; }
     var ringsXY = projRings(target);
     var ptXY = ringsXY.proj.toXY(ll[0], ll[1]);
     if (!G.pointInPolyXYOpt(ptXY, ringsXY.rings, false)) {
@@ -230,6 +235,8 @@
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   A.focusTree = focusTree;
+  A.moveArmed = function () { return !!pendingMovePid; };
+  A.isDrawingPt = function () { return M.isDrawing && M.isDrawing(); };
 
   // ---------------- grid calc wiring ----------------
   A.calcGridForPlot = function (plotId, opts) {
@@ -858,7 +865,7 @@
       A.refreshGridPanel();
     };
 
-    // map global clicks by tool
+    // map global clicks — decision hub เดียวของโหมดชี้ตำแหน่ง
     M.map().on('click', function (e) {
       var ll = [e.latlng.lat, e.latlng.lng];
       switch (A.tool) {
@@ -873,11 +880,23 @@
           break;
         }
         case 'addTree': addTreeAt(ll, null); break;
-        case 'moveTree': if (pendingMovePid) moveTreeTo(ll); break;
+        case 'moveTree':
+          if (pendingMovePid) { moveTreeTo(ll); }
+          else {
+            // arming: หาต้นใกล้สุดในรัศมี 15 ม. จากที่แตะ (บนพื้นที่ต้นหนาแน่น = ได้ต้นที่ต้องการแน่นอน)
+            var p2 = S.selected(); if (!p2) { A.toast('เลือกแปลงก่อน', 'warn'); break; }
+            var proj = projRings(p2).proj, me = proj.toXY(ll[0], ll[1]);
+            var best = null, bd = 15;
+            p2.points.forEach(function (q) { var o = proj.toXY(q.lat, q.lng); var d = Math.hypot(o.x - me.x, o.y - me.y); if (d < bd) { bd = d; best = q; } });
+            if (best) { pendingMovePid = best.id; M.selectedTreeId = best.id; M.selectedTreePlot = p2.id; focusTree(p2.id, best.id); M.refreshPlot(p2.id, true); banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + best.id); }
+            else { M.selectedTreeId = null; M.refreshPlot(p2.id ? p2.id : '', true); banner('ไม่พบต้นในรัศมี 15 ม. — แตะใกล้ต้นที่ต้องการย้าย'); }
+          }
+          break;
         case 'select': M.selectedTreeId = null; break;
       }
     });
-    M.map().on('mousemove', function (e) {
+
+M.map().on('mousemove', function (e) {
       if (A.tool === 'coord' || true) {
         var cp = $('coordPill');
         cp.hidden = !(A.tool === 'coord' || A.originPicking);
