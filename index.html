@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>PalmsPlan — วางแผนปลูกปาล์มจากแผนที่ดาวเทียม</title>
+<meta name="description" content="วาดแปลง วัดพื้นที่ คำนวณจุดปลูกปาล์มสามเหลี่ยมด้านเท่า ใช้งานจริงบนมือถือและคอมพิวเตอร์">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E🌴%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<div id="app">
+  <div id="map" aria-label="แผนที่ดาวเทียม"></div>
+
+  <!-- แถวบน: โปรเจกต์ + ค้นหา (สไตล์ Google Maps / แอปวัดที่ดิน) -->
+  <header class="topbar">
+    <button id="btnMenu" class="tb-btn" title="เมนู / แผงควบคุม" aria-label="เมนู">
+      <span class="ico">≡</span></button>
+    <button id="projChip" class="proj-chip" title="โครงการปัจจุบัน — แตะเพื่อเปลี่ยน">
+      <span class="dot"></span><span id="projName">โครงการของฉัน</span><span class="caret">▾</span>
+    </button>
+    <div class="search-wrap">
+      <div class="search-box">
+        <span class="ico">🔍</span>
+        <input id="searchInput" type="text" placeholder="ค้นหาสถานที่ / ที่ดิน / พิกัด…"></span>
+        <button id="searchClearBtn" class="s-clear" title="ล้าง">×</button>
+      </div>
+      <div id="searchResults" class="search-results" hidden></div>
+    </div>
+    <button id="saveChip" class="save-chip" title="สถานะการบันทึก">💾 <span id="saveState">ยังไม่บันทึก</span></button>
+  </header>
+
+  <!-- ปุ่มควบคุมขวาของแผนที่ -->
+  <div class="map-ctl" id="mapCtl">
+    <button id="btnLayers" class="mc-btn" title="สลับชั้นแผนที่ (ดาวเทียม / มาตรฐาน)">
+      <span id="layerLabel">ดาว</span></button>
+    <button id="btnLocate" class="mc-btn" title="ตำแหน่งปัจจุบันของผม">◎</button>
+    <button id="btnFit" class="mc-btn" title="ให้เห็นทุกแปลง">⛶</button>
+    <div class="mc-sep"></div>
+    <button id="btnZoomIn" class="mc-btn" title="ซูมเข้า">＋</button>
+    <button id="btnZoomOut" class="mc-btn" title="ซูมออก">－</button>
+  </div>
+
+  <!-- แถบเครื่องมือวัด (chips ลอยบนแผนที่) -->
+  <div class="chips" id="toolChips">
+    <button class="chip" data-chip="measure-dist" title="คลิกระบุจุดบนแผนที่ เพื่อวัดระยะเป็นเส้น">📏 วัดระยะ</button>
+    <button class="chip" data-chip="measure-area" title="วาดรูปหลายเหลี่ยมเพื่อวัดพื้นที่">⬡ วัดพื้นที่</button>
+    <button class="chip" data-chip="coord" title="แสดงพิกัดตามเคอร์เซอร์/นิ้วแตะ">🎯 พิกัด</button>
+    <button class="chip" data-chip="clearmeasure" title="ลบผลการวัดทั้งหมด">🧹 ล้างผลวัด</button>
+  </div>
+
+  <!-- ปุ่ม FAB กลางล่าง -->
+  <div class="fab-group" id="fabGroup">
+    <button id="fabUndo" class="fab fab-sec" title="ยกเลิก操作中ล่าสุด (Undo)">⟲</button>
+    <button id="fabDraw" class="fab fab-main" title="เริ่มวาดแปลงใหม่">＋</button>
+    <button id="fabCalc" class="fab fab-sec" title="คำนวณจุดปลูกของแปลงที่เลือก">🌴</button>
+  </div>
+
+  <!-- แถวสถานะ: พิกัด + คำอธิบายโหมดปัจจุบัน -->
+  <div class="mode-banner" id="modeBanner" hidden>
+    <span id="modeText"></span>
+    <button id="modeCancel" title="ยกเลิก">×</button>
+  </div>
+
+  <!-- Bottom sheet (มือถือ) / Sidebar (คอม) -->
+  <aside class="panel" id="panel">
+    <div class="panel-grab" id="panelGrab" title="ดึงขึ้น/ลง"><span></span></div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="plots"><span class="tico">🗺️</span>แปลง</button>
+      <button class="tab" data-tab="grid"><span class="tico">🌴</span>แนวปลูก</button>
+      <button class="tab" data-tab="edit"><span class="tico">✏️</span>แก้ไข</button>
+      <button class="tab" data-tab="data"><span class="tico">🗄️</span>ข้อมูล</button>
+      <button class="tab" data-tab="report"><span class="tico">📊</span>รายงาน</button>
+    </nav>
+
+    <!-- สรุปข้อมูลเรียลไทม์ (3.3 แถบสรุป) -->
+    <div class="summary-strip" id="summaryStrip">
+      <div class="sum"><b id="sumPlots">0</b><span>แปลง</span></div>
+      <div class="sum"><b id="sumArea">–</b><span>พื้นที่รวม</span></div>
+      <div class="sum"><b id="sumPlant">–</b><span>ปลูกได้จริง</span></div>
+      <div class="sum"><b id="sumTrees">0</b><span>ต้น</span></div>
+      <div class="sum warn" id="sumViolWrap" hidden><b id="sumViol">0</b><span>ผิดระยะ</span></div>
+      <div class="sum" id="sumManualWrap"><b id="sumManual">0</b><span>ปรับมือ</span></div>
+    </div>
+
+    <div class="tab-body">
+      <!-- ===== แปลง ===== -->
+      <section id="tab-plots" class="tab-pane active">
+        <button id="btnDrawPlot" class="btn btn-primary block">🗺️ วาดแปลงใหม่</button>
+        <p class="hint">แตะแผนที่เพื่อวางจุดมุมต่อไปเรื่อย ๆ เสร็จแล้วกด “ปิดแปลง”<br>พื้นที่คำนวณจากพิกัดจริง แสดงเป็นไร่/งาน/ตร.ว.</p>
+        <div id="plotList" class="plot-list"></div>
+        <div id="plotActions" class="plot-actions" hidden>
+          <button class="btn btn-small" id="paRename">เปลี่ยนชื่อ</button>
+          <button class="btn btn-small" id="paCopy">คัดลอก</button>
+          <button class="btn btn-small" id="paHole" title="วาดพื้นที่เว้นปลูก (ถนน/บ่อ) ภายในแปลง">⛔ เว้นปลูก</button>
+          <button class="btn btn-small" id="paFit">ขยายให้เต็มจอ</button>
+          <button class="btn btn-small danger" id="paDelete">ลบแปลง</button>
+        </div>
+      </section>
+
+      <!-- ===== แนวปลูก ===== -->
+      <section id="tab-grid" class="tab-pane">
+        <div id="gridNoPlot" class="empty">เลือกแปลงก่อน (แท็บ “แปลง”)</div>
+        <div id="gridForm" hidden>
+          <div class="field">
+            <label for="inSpacing">ระยะระหว่างต้น (เมตร) <span class="q" title="ค่ามาตรฐานปาล์มน้ำมันคือ 9 ม. ระบบจะใช้สามเหลี่ยมด้านเท่าเสมอ">?</span></label>
+            <input id="inSpacing" type="number" min="4" max="20" step="0.1" value="9">
+          </div>
+          <div class="field">
+            <label>มุมแนวแถว: <b id="angleRead">0°</b> <span class="q" title="0° = แนวเหนือ-ใต้ ลองหมุนให้ขนานแถวเดิมในสนามจริง">?</span></label>
+            <input id="inAngle" type="range" min="0" max="359" step="1" value="0">
+            <div class="row-mini">
+              <button class="btn btn-tiny" data-angle-step="-15">−15°</button>
+              <button class="btn btn-tiny" data-angle-step="-1">−1°</button>
+              <button class="btn btn-tiny" data-angle-step="1">+1°</button>
+              <button class="btn btn-tiny" data-angle-step="15">+15°</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>ระยะห่างระหว่างแถว (คำนวณอัตโนมัติ)</label>
+            <div class="readout" id="rowGapOut">7.794 ม. (= s×√3/2)</div>
+          </div>
+          <div class="field2">
+            <div class="field"><label>เลื่อนแนวตามแถว (ม.)</label>
+              <div class="row-mini">
+                <button class="btn btn-tiny" data-off="along" data-step="-1">−1</button>
+                <button class="btn btn-tiny" data-off="along" data-step="-0.25">−¼</button>
+                <button class="btn btn-tiny" data-off="along" data-step="0.25">+¼</button>
+                <button class="btn btn-tiny" data-off="along" data-step="1">+1</button>
+                <span class="off-val" id="alongVal">0</span>
+              </div>
+            </div>
+            <div class="field"><label>เลื่อนตั้งฉากแถว (ม.)</label>
+              <div class="row-mini">
+                <button class="btn btn-tiny" data-off="cross" data-step="-1">−1</button>
+                <button class="btn btn-tiny" data-off="cross" data-step="-0.25">−¼</button>
+                <button class="btn btn-tiny" data-off="cross" data-step="0.25">+¼</button>
+                <button class="btn btn-tiny" data-off="cross" data-step="1">+1</button>
+                <span class="off-val" id="crossVal">0</span>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="inBuffer">เว้นจากขอบแปลง (เมตร) <span class="q" title="จุดปลูกจะไม่นับในเขตนี้ นับทั้งขอบนอกและรอบพื้นที่เว้นปลูก">?</span></label>
+            <input id="inBuffer" type="number" min="0" max="30" step="0.5" value="0">
+          </div>
+          <label class="check"><input type="checkbox" id="chkBorder"> จุดบนเส้นขอบนับเป็นพื้นที่ปลูก</label>
+          <div class="field">
+            <label>จุดเริ่ม Grid (origin)</label>
+            <div class="row-mini">
+              <button class="btn btn-tiny" id="btnPickOrigin">📍 ชี้ตำแหน่งบนแผนที่</button>
+              <button class="btn btn-tiny" id="btnClearOrigin">รีเซ็ต</button>
+              <span class="off-val" id="originState">มุมแปลงอัตโนมัติ</span>
+            </div>
+          </div>
+          <button id="btnCalcGrid" class="btn btn-primary block">🌴 คำนวณจุดปลูก</button>
+          <p class="hint" id="gridHint">ระบบจะสร้างตำแหน่งปลูกแบบสามเหลี่ยมด้านเท่า (แถวคี่เลื่อนครึ่งระยะ) และตัดจุดนอกขอบ/พื้นที่เว้นปลูกออก</p>
+          <div class="preview-note" id="recalcNote" hidden></div>
+        </div>
+      </section>
+
+      <!-- ===== แก้ไข ===== -->
+      <section id="tab-edit" class="tab-pane">
+        <div class="seg" id="editModes">
+          <button class="seg-btn active" data-emode="select" title="แตะต้นเพื่อดูรายละเอียด">👆 ดู</button>
+          <button class="seg-btn" data-emode="add" title="แตะแผนที่เพื่อเพิ่มต้นด้วยมือ">＋ เพิ่ม</button>
+          <button class="seg-btn" data-emode="move" title="แตะต้น แล้วแตะตำแหน่งใหม่">↔ ย้าย</button>
+          <button class="seg-btn" data-emode="del" title="แตะต้น เพื่อลบ">🗑 ลบ</button>
+        </div>
+        <p class="hint" id="editHint">เพิ่ม/ย้าย/ลบแล้ว ระบบตรวจระยะห่างทันที จุดที่ชิดเกินไปจะกลายเป็นสีแดง</p>
+        <div class="field2">
+          <button class="btn" id="btnUndo">⟲ ถอยกลับ</button>
+          <button class="btn" id="btnRedo">↱ ทำซ้ำ</button>
+        </div>
+        <div class="tree-info" id="treeInfo" hidden></div>
+        <label class="check"><input type="checkbox" id="chkShowViol"> เน้นจุดผิดระยะ <span class="pill-red" id="violCountPill" hidden>0</span></label>
+        <button class="btn danger block" id="btnClearPoints">ลบจุดปลูกของแปลงที่เลือกออกทั้งหมด</button>
+      </section>
+
+      <!-- ===== ข้อมูล ===== -->
+      <section id="tab-data" class="tab-pane">
+        <h4>โครงการ</h4>
+        <div class="field2">
+          <button class="btn btn-primary" id="btnSaveNow">💾 บันทึกทันที</button>
+          <button class="btn" id="btnNewProject">✚ โครงการใหม่</button>
+        </div>
+        <button class="btn block" id="btnProjectList">📂 เปิด / จัดการโครงการ…</button>
+        <div class="field2">
+          <button class="btn" id="btnExportProject" title="ไฟล์ JSON สำรองข้อมูลทั้งหมด">⬇ JSON สำรอง</button>
+          <button class="btn" id="btnImportProject" title="นำเข้าไฟล์ JSON — ไม่ทับข้อมูลถ้าไฟล์ผิด">⬆ นำเข้า JSON</button>
+        </div>
+        <h4>ส่งออกสำหรับงานสนาม</h4>
+        <div class="field2">
+          <button class="btn" id="btnExportCSV">⬇ จุดปลูก CSV</button>
+          <button class="btn" id="btnExportGeoJSON">⬇ ขอบ+จุด GeoJSON</button>
+        </div>
+        <h4>นำเข้า</h4>
+        <div class="field2">
+          <button class="btn" id="btnImportCSV" title="คอลัมน์: plot_name,point_id,latitude,longitude">⬆ CSV จุดปลูก</button>
+          <button class="btn" id="btnImportGeoJSON" title="Polygon กลายเป็นแปลง / Point กลายเป็นต้น">⬆ GeoJSON</button>
+        </div>
+        <button class="btn block" id="btnPasteCoords">📋 วางพิกัดจากข้อความ…</button>
+        <p class="tiny-note">รูปแบบ CSV: <code>plot_name,point_id,latitude,longitude</code><br>
+        GeoJSON: Polygon→แปลง, Point→จุดปลูก | แผนที่ต้องต่อเน็ตเพื่อดาวเทียม แต่ข้อมูลแปลงบันทึกในเครื่องเสมอ<br>
+        ที่เก็บข้อมูล: <b id="storageBackend">…</b>
+        </p>
+      </section>
+
+      <!-- ===== รายงาน ===== -->
+      <section id="tab-report" class="tab-pane">
+        <button class="block btn" id="btnExportSummary">⬇ สรุปเป็น CSV</button>
+        <div id="reportBox" class="report-box"></div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- pill พิกัดมุมซ้ายล่าง -->
+  <div class="coord-pill" id="coordPill" hidden></div>
+
+  <!-- banner เมื่อโหลดแผนที่/ไลบรารีไม่สำเร็จ -->
+  <div class="net-banner" id="netBanner" hidden>⚠ โหลดภาพดาวเทียมไม่ได้ — เชื่อมต่อเน็ตแล้วกด “ลองใหม่” (ข้อมูลแปลงของคุณปลอดภัย)</div>
+
+  <!-- ====== dialogs ====== -->
+  <dialog id="dlgInput">
+    <form method="dialog" class="dlg">
+      <h3 id="dlgInputTitle">ตั้งชื่อ</h3>
+      <input id="dlgInputValue" type="text" autocomplete="off">
+      <div class="dlg-btns">
+        <button value="cancel" class="btn">ยกเลิก</button>
+        <button value="ok" class="btn btn-primary" id="dlgInputOk">ตกลง</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlgConfirm">
+    <div class="dlg">
+      <h3 id="dlgConfirmTitle">ยืนยัน</h3>
+      <p id="dlgConfirmMsg"></p>
+      <div class="dlg-btns">
+        <button class="btn" id="dlgConfirmNo">ยกเลิก</button>
+        <button class="btn btn-primary" id="dlgConfirmYes">ยืนยัน</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="dlgProjects">
+    <div class="dlg wide">
+      <h3>โครงการทั้งหมด</h3>
+      <div id="projectList" class="project-list"></div>
+      <div class="dlg-btns"><button class="btn btn-primary" id="dlgProjectsClose">ปิด</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="dlgPaste">
+    <div class="dlg wide">
+      <h3>วางพิกัด (1 จุด / บรรทัด)</h3>
+      <p class="hint">รับทั้ง <code>lat, lng</code> และ <code>lng, lat</code> เว้นวรรค/คอมม่า/tab ได้ — ระบุชื่อแปลงไว้ท้ายบรรทัดได้ เช่น<br><code>9.9571, 99.0966 แปลง A</code></p>
+      <textarea id="pasteArea" rows="7" placeholder="9.9571, 99.0966&#10;9.9572, 99.0967 &#10;..."></textarea>
+      <label class="check"><input type="checkbox" id="chkPasteNewPlot"> สร้างแปลงล้อมรอบจุดให้ด้วย (Convex hull)</label>
+      <div class="dlg-btns">
+        <button class="btn" id="dlgPasteCancel">ยกเลิก</button>
+        <button class="btn btn-primary" id="dlgPasteOk">นำเข้า</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toasts"></div>
+  <input type="file" id="filePicker" hidden accept=".json,.csv,.geojson,.txt">
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>window.addEventListener('error',function(e){if(String(e.message).indexOf('L is not defined')>=0||e.filename.indexOf('unpkg')>=0){var b=document.getElementById('netBanner');if(b){b.hidden=false;b.textContent='⚠ โหลดไลบรารีแผนที่ (Leaflet) ไม่สำเร็จ — ต้องใช้เบราว์เซอร์ที่ต่ออินเทอร์เน็ตได้';}}},true);</script>
+<script src="js/geo.js"></script>
+<script src="js/grid.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/io.js"></script>
+<script src="js/state.js"></script>
+<script src="js/mapui.js"></script>
+<script src="js/app.js"></script>
+<script>(function(){var g=document.createElement('style');g.id='plabels';document.head.appendChild(g);})();</script>
+</body>
+</html>
