@@ -4,6 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
+  root.PP_BUILD = 'v3.4';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -155,9 +156,18 @@
       case 'delTree': S.select(plotId); S.removePoint(plotId, pid); afterPointEdit(plotId, 'ลบต้น #' + pid); break;
       case 'moveTree':
         S.select(plotId);
-        if (pendingMovePid && pendingMovePid !== pid) { moveTreeTo({ lat: null }); pendingMovePid = pid; banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + pid); }
-        else if (pendingMovePid === pid) { pendingMovePid = null; A.setTool('moveTree'); }
-        else { pendingMovePid = pid; focusTree(plotId, pid); banner('แตะตำแหน่งใหม่บนแผนที่เพื่อย้ายต้น #' + pid); }
+        if (pendingMovePid && pendingMovePid === pid) {
+          // แตะต้นเดิมซ้ำ = ยกเลิก
+          pendingMovePid = null; A.setTool('moveTree'); banner('แตะตำแหน่งใหม่บนแผนที่เพื่อย้ายต้น');
+        } else if (pendingMovePid && ll) {
+          // มีต้นจับไว้แล้ว แตะตรงไหน也算จุดหมาย (แปลงหนาแน่น: แตะโดนต้นอื่นบ่อย — ต้องย้ายได้ ไม่ใช่สลับเป้าหมาย)
+          if (typeof q_lat === 'undefined') {} // no-op
+          moveTreeTo([ll[0] + 0.0000001, ll[1] + 0.0000001]); // เลื่อน 1 ซม. กันระยะเท่า 0
+          pendingMovePid = null;
+          A.setTool('moveTree');
+        } else if (!pendingMovePid && pid) {
+          pendingMovePid = pid; focusTree(plotId, pid); banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + pid);
+        }
         break;
       default: S.select(plotId); focusTree(plotId, pid);
     }
