@@ -4,7 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
-  root.PP_BUILD = 'v3.6';
+  root.PP_BUILD = 'v3.7';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -234,6 +234,14 @@
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   A.focusTree = focusTree;
+  A.__dbg = function () {
+    var sm = S.summary();
+    var p = S.selected();
+    var vl = p ? S.validatePlot(p.id) : [];
+    return { tool: A.tool, pendingMove: pendingMovePid === undefined ? 'NA' : pendingMovePid,
+      sel: S.selectedPlotId, n: p ? p.points.length : 0, violN: vl.length,
+      violDists: vl.slice(0, 6).map(function (v) { return Math.round(v.dist * 100) / 100; }) };
+  };
   A.moveArmed = function () { return !!pendingMovePid; };
   A.isDrawingPt = function () { return M.isDrawing && M.isDrawing(); };
 
