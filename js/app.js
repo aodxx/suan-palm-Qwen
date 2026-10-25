@@ -471,6 +471,20 @@
       } catch (e) { A.toast('❌ ' + e.message, 'warn', 5200); }
     });
   };
+  A.importKMLFile = function (file) {
+    IO.readFileText(file).then(function (text) {
+      try {
+        var r = IO.importKML(text);
+        r.plots.forEach(function (pl, idx) {
+          var np = S.addPlot(pl.ring, pl.name || ('แปลง KML ' + (S.project.plots.length + 1)));
+          (pl.holes || []).forEach(function (h) { S.addHole(np.id, h); });
+        });
+        if (r.points.length) importPointsAsTrees(r.points);
+        A.refreshAll();
+        A.toast('KML: ' + r.plots.length + ' แปลง' + (r.points.length ? ' + ' + r.points.length + ' จุด' : ''), 'ok');
+      } catch (e) { A.toast('❌ ' + e.message, 'warn', 5200); }
+    });
+  };
   function importPointsAsTrees(pts, defPlot) {
     var byName = {};
     pts.forEach(function (q) { var k = q.plotName || q.label || defPlot || ''; (byName[k] = byName[k] || []).push(q); });
@@ -879,10 +893,12 @@
     $('btnImportProject').onclick = function () { pick('project', '.json'); };
     $('btnImportCSV').onclick = function () { pick('csv', '.csv,.txt'); };
     $('btnImportGeoJSON').onclick = function () { pick('geojson', '.geojson,.json'); };
+    $('btnImportKML').onclick = function () { pick('kml', '.kml'); };
     $('filePicker').onchange = function () {
       var f = this.files && this.files[0]; if (!f) return;
       if (pendingFileKind === 'project') A.importProject(f);
       else if (pendingFileKind === 'csv') A.importCSV(f);
+      else if (pendingFileKind === 'kml') A.importKMLFile(f);
       else A.importGeoJSONFile(f);
     };
 
@@ -936,8 +952,20 @@
     document.querySelector('[data-emode="select"]').onclick;
   }
 
+  // ---------------- offline / service worker ----------------
+  function netAware() {
+    function show() { var b = $('netBanner'); if (b) { b.hidden = false; b.textContent = window.__offlineMode ? '✈️โหมดออฟไลน์: ตัวแอป+ข้อมูลใช้งานได้ปกติ · ภาพดาวเทียมอาจเป็นภาพเก่า/ไม่โหลดจนกว่าจะกลับออนไลน์' : '⚠ โหลดภาพดาวเทียมไม่ได้ — เชื่อมต่อเน็ตแล้วกด “ลองใหม่” (ข้อมูลแปลงของคุณปลอดภัย)'; } }
+    window.addEventListener('offline', function () { window.__offlineMode = true; A.toast('หลุดออนไลน์ — โหมดออฟไลน์: บันทึก/คำนวณ/แก้ไขทำได้ต่อ', 'warn', 3600); show(); });
+    window.addEventListener('online', function () { window.__offlineMode = false; $('netBanner').hidden = true; A.toast('กลับออนไลน์แล้ว'); });
+    if (!navigator.onLine) { window.__offlineMode = true; show(); }
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      navigator.serviceWorker.register('./sw.js').catch(function () { /* ไม่fatal */ });
+    }
+  }
+
   // ---------------- boot ----------------
   function boot() {
+    netAware();
     M.init($('map'));
     M.onTileError = function () { $('netBanner').hidden = false; };
     $('netBanner').onclick = function () { location.reload(); };

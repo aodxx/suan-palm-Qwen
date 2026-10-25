@@ -215,6 +215,63 @@
     return { points: out, errors: errors };
   }
 
+
+  // ---------- KML (ส่วนเสริมตามสเปกข้อ 10.1 — แยกฟังก์ชันไม่ทำให้หลักซับซ้อน) ----------
+  // รองรับ Folder/Placemark: Polygon (outer+innerBoundary), LineString→แปลงถ้าปิดรูป, Point→จุดปลูก
+  function importKML(text) {
+    var doc;
+    try { doc = new DOMParser().parseFromString(text, 'application/xml'); }
+    catch (e) { throw new Error('อ่าน XML ไม่สำเร็จ: ' + e.message); }
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('ไฟล์ KML ไม่ถูกต้อง (XML เสีย)');
+    function coordStrToLL(str) {
+      var out = [];
+      (str || '').trim().split(/\s+/).forEach(function (tok) {
+        var p = tok.split(',');
+        if (p.length < 2) return;
+        var lng = parseFloat(p[0]), lat = parseFloat(p[1]);
+        if (isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) out.push([lat, lng]);
+      });
+      return out;
+    }
+    function tagText(el, name) {
+      var t = el.getElementsByTagName(name);
+      return t.length ? t[0].textContent : '';
+    }
+    var plots = [], points = [];
+    var marks = doc.getElementsByTagName('Placemark');
+    for (var i = 0; i < marks.length; i++) {
+      var el = marks[i];
+      var name = tagText(el, 'name') || ('Placemark ' + (i + 1));
+      var polys = el.getElementsByTagName('Polygon');
+      for (var j = 0; j < polys.length; j++) {
+        var poly = polys[j];
+        var outer = poly.getElementsByTagName('outerBoundaryIs');
+        if (!outer.length) continue;
+        var ring = coordStrToLL(tagText(outer[0], 'coordinates'));
+        if (ring.length >= 3 && !(ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1])) ring.push(ring[0].slice());
+        if (ring.length < 4) continue;
+        var holes = [];
+        var inners = poly.getElementsByTagName('innerBoundaryIs');
+        for (var k = 0; k < inners.length; k++) {
+          var hr = coordStrToLL(tagText(inners[k], 'coordinates'));
+          if (hr.length >= 4) {
+            if (hr[0][0] === hr[hr.length - 1][0] && hr[0][1] === hr[hr.length - 1][1]) hr = hr.slice(0, -1);
+            holes.push(hr);
+          }
+        }
+        plots.push({ name: name, ring: ring.slice(0, ring.length - 1), holes: holes });
+      }
+      var ptags = el.getElementsByTagName('Point');
+      for (var q = 0; q < ptags.length; q++) {
+        var pl = coordStrToLL(tagText(ptags[q], 'coordinates'));
+        if (pl.length) points.push({ lat: pl[0][0], lng: pl[0][1], plotName: name });
+      }
+    }
+    if (!plots.length && !points.length) throw new Error('ไม่พบ Polygon/Point ในไฟล์ KML นี้');
+    return { plots: plots, points: points };
+  }
+
+
   // ---------- สรุปผล ----------
   function exportSummaryCSV(project, calc) {
     var lines = ['รายการ,ค่า'];
@@ -241,7 +298,7 @@
     exportProjectJSON: exportProjectJSON, importProjectJSON: importProjectJSON,
     exportGeoJSON: exportGeoJSON, importGeoJSON: importGeoJSON,
     exportPointsCSV: exportPointsCSV, importPointsCSV: importPointsCSV,
-    parsePastedCoords: parsePastedCoords, exportSummaryCSV: exportSummaryCSV,
+    parsePastedCoords: parsePastedCoords, exportSummaryCSV: exportSummaryCSV, importKML: importKML,
     parseCSVRows: parseCSVRows
   };
 });

@@ -1,0 +1,16 @@
+{
+  "name": "PalmsPlan — วางแผนปลูกปาล์มน้ำมัน",
+  "short_name": "PalmsPlan",
+  "description": "วางแผนปลูกปาล์มน้ำมันด้วยแผนที่ดาวเทียม: วาดแปลง คำนวณจุดปลูกสามเหลี่ยมด้านเท่า แก้ไขด้วยมือ ส่งออกข้อมูลใช้งานสนาม (ติดตั้งใช้บนมือถือได้)",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e1b12",
+  "theme_color": "#14532d",
+  "lang": "th",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

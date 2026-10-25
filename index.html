@@ -10,6 +10,13 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E🌴%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14532d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PalmsPlan">
 </head>
 <body>
 <div id="app">
@@ -202,7 +209,10 @@
           <button class="btn" id="btnImportCSV" title="คอลัมน์: plot_name,point_id,latitude,longitude">⬆ CSV จุดปลูก</button>
           <button class="btn" id="btnImportGeoJSON" title="Polygon กลายเป็นแปลง / Point กลายเป็นต้น">⬆ GeoJSON</button>
         </div>
-        <button class="btn block" id="btnPasteCoords">📋 วางพิกัดจากข้อความ…</button>
+        <div class="field2">
+          <button class="btn" id="btnImportKML" title="Google Earth — Polygon/Placemark → แปลง/จุด">⬆ KML</button>
+          <button class="btn" id="btnPasteCoords">📋 วางพิกัดจากข้อความ…</button>
+        </div>
         <p class="tiny-note">รูปแบบ CSV: <code>plot_name,point_id,latitude,longitude</code><br>
         GeoJSON: Polygon→แปลง, Point→จุดปลูก | แผนที่ต้องต่อเน็ตเพื่อดาวเทียม แต่ข้อมูลแปลงบันทึกในเครื่องเสมอ<br>
         ที่เก็บข้อมูล: <b id="storageBackend">…</b>
