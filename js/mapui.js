@@ -84,8 +84,9 @@
       m.__pid = q.id; m.__plotId = p.id; m.__ll = [q.lat, q.lng];
       m.on('click', function (e) {
         if (M.onTreeClick) {
-          if (['pickOrigin', 'addTree'].indexOf(root.PalmApp ? root.PalmApp.tool : '') >= 0) return; // ให้ map handler จัดการ
-          L.DomEvent.stopPropagation(e); M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
+          // ทุกโหมดรวม addTree/pickOrigin: p้อนเข้า onTreeClick พร้อมพิกัด (map click จะไม่ fire เมื่อ canvas จับโดน)
+          L.DomEvent.stopPropagation(e);
+          M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
         }
       });
       m.bindTooltip('ต้น #' + (i + 1) + (q.manual ? ' (ปรับมือ)' : '') +
