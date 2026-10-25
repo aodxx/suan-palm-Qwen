@@ -61,7 +61,7 @@
 
   <!-- ปุ่ม FAB กลางล่าง -->
   <div class="fab-group" id="fabGroup">
-    <button id="fabUndo" class="fab fab-sec" title="ยกเลิก操作中ล่าสุด (Undo)">⟲</button>
+    <button id="fabUndo" class="fab fab-sec" title="ยกเลิกการแก้ไขล่าสุด (Undo)">⟲</button>
     <button id="fabDraw" class="fab fab-main" title="เริ่มวาดแปลงใหม่">＋</button>
     <button id="fabCalc" class="fab fab-sec" title="คำนวณจุดปลูกของแปลงที่เลือก">🌴</button>
   </div>
@@ -110,7 +110,7 @@
 
       <!-- ===== แนวปลูก ===== -->
       <section id="tab-grid" class="tab-pane">
-        <div id="gridNoPlot" class="empty">เลือกแปลงก่อน (แท็บ “แปลง”)</div>
+        <div id="gridNoPlot" class="empty">ยังไม่ได้เลือกแปลง — วาดแปลงก่อนแล้วค่อยวางแนวปลูก<button class="btn btn-small block" id="btnGoPlots" style="margin-top:10px">➜ ไปแท็บ แปลง</button></div>
         <div id="gridForm" hidden>
           <div class="field">
             <label for="inSpacing">ระยะระหว่างต้น (เมตร) <span class="q" title="ค่ามาตรฐานปาล์มน้ำมันคือ 9 ม. ระบบจะใช้สามเหลี่ยมด้านเท่าเสมอ">?</span></label>
@@ -183,7 +183,7 @@
           <button class="btn" id="btnRedo">↱ ทำซ้ำ</button>
         </div>
         <div class="tree-info" id="treeInfo" hidden></div>
-        <label class="check"><input type="checkbox" id="chkShowViol"> เน้นจุดผิดระยะ <span class="pill-red" id="violCountPill" hidden>0</span></label>
+        <button class="btn block" id="btnJumpViol" title="เลื่อนแผนที่ไปยังจุดที่ห่างกันน้อยกว่าระยะกำหนด">🎯 ไปจุดผิดระยะที่ใกล้สุด <span class="pill-red" id="violCountPill" hidden>0</span></button>
         <button class="btn danger block" id="btnClearPoints">ลบจุดปลูกของแปลงที่เลือกออกทั้งหมด</button>
       </section>
 
@@ -277,7 +277,16 @@
     </div>
   </dialog>
 
-  <div id="toasts"></div>
+  <div class="coach" id="coach" hidden>
+  <div class="coach-head">🌴 <b>เริ่มใช้งาน PalmsPlan</b><button id="coachX" title="ปิดและไม่แสดงอีก">×</button></div>
+  <ol>
+    <li>กด <b>＋</b> ส้ม แล้ว<b>แตะแผนที่</b>เป็นจุดมุมรอบสวน → กด <b>✔ ปิดแปลง</b> (เห็นพื้นที่ไร่ทันที)</li>
+    <li>ไปแท็บ <b>แนวปลูก</b> ตั้งระยะ/มุมแถว → กด <b>🌴 คำนวณจุดปลูก</b></li>
+    <li>แท็บ <b>แก้ไข</b> เพิ่ม/ย้าย/ลบต้นได้ จุดแดง = ชิดกันเกินไป · แท็บ <b>ข้อมูล</b> ส่งออก CSV ไปใช้งานสนาม</li>
+  </ol>
+  <div class="tiny-note">ทุกอย่างบันทึกในเครื่องอัตโนมัติ · ใช้ offline ได้หลังติดตั้ง</div>
+</div>
+<div id="toasts"></div>
   <input type="file" id="filePicker" hidden accept=".json,.csv,.geojson,.txt">
 </div>
 

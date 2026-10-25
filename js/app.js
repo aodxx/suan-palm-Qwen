@@ -117,7 +117,7 @@
       drawHole: 'วาดพื้นที่เว้นปลูกในแปลง (ถนน/บ่อ) · กด “ปิดรูป” เมื่อครบ',
       editVertex: 'ลากจุดมุมเพื่อปรับขอบเขต · แตะ 2 ครั้งบนเส้นเพื่อเพิ่มจุดมุม',
       pickOrigin: 'แตะตำแหน่งเริ่มต้น Grid บนแผนที่', addTree: 'แตะแผนที่เพื่อเพิ่มต้นในแปลงที่เลือก',
-      moveTree: pendingMovePid ? 'แตะตำแหน่งใหม่给ต้น #' + pendingMovePid : 'แตะต้นที่ต้องการย้ายก่อน',
+      moveTree: pendingMovePid ? 'แตะตำแหน่ง جدیدเพื่อ ย้ายต้น #' + pendingMovePid : 'แตะต้นที่ต้องการย้ายก่อน',
       delTree: 'แตะต้นเพื่อลบ', measureDist: 'แตะจุดเพื่อวัดระยะ (กด “เสร็จ” เมื่อบันทึก)', measureArea: 'แตะจุดมุมพื้นที่ชั่วคราว · “เสร็จ” เพื่อจบ',
       coord: 'เลื่อนเมาส์/แตะเพื่อดูพิกัด'
     };
@@ -581,7 +581,7 @@
       fetch(url, { headers: { 'X-Preferred-Results': 'th' } })
         .then(function (r) { return r.json(); })
         .then(function (rows) {
-          if (!rows.length) { box.innerHTML = '<div class="sr-loading">ไม่พบสถานที่ ลองคำค้นอื่น หรือพิมพ์พิกัด เช่น 9.9571, 99.0966</div>'; tryCoord(); return; }
+          if (!rows.length) { box.innerHTML = '<div class="sr-loading">ไม่พบสถานที่ — ลองคำค้นอื่น หรือพิมพ์พิกัด เช่น 9.9571, 99.0966</div>'; tryCoord(); return; }
           box.innerHTML = '';
           rows.forEach(function (r) {
             var it = document.createElement('div');
@@ -595,7 +595,7 @@
           });
         })
         .catch(function () { box.innerHTML = '<div class="sr-loading">ค้นหาไม่ได้ — ต้องต่อเน็ต (ลองพิมพ์พิกัดตรง เช่น 9.9571, 99.0966)</div>'; tryOnly(); });
-      function tryCoord() { try { IO.parsePastedCoords(q); } catch (e) { } }
+      function tryCoord() { try { var c = IO.parsePastedCoords(q); M.map().setView([c.points[0].lat, c.points[0].lng], 17); box.hidden = true; } catch (e) { } }
       function tryOnly() {
         try {
           var r = IO.parsePastedCoords(q);
@@ -648,6 +648,9 @@
       var p = S.addPlot(ring);
       A.refreshAll();
       A.toast('สร้าง “' + esc(p.name) + '” — ' + G.formatThaiArea(G.polygonAreaSqM([p.ring])), 'ok');
+      var cw = $('coach'); if (cw) cw.hidden = true;
+      $('fabCalc').classList.add('pulse');
+      setTimeout(function () { $('fabCalc').classList.remove('pulse'); }, 4200);
       A.enterDrawDone(ring);
     } else if (res.mode === 'hole') {
       var sel = S.selected();
@@ -667,6 +670,7 @@
     A.cancelTool();
   }
   A.enterDrawDone = function () { /* hook เผื่อส่วนอื่นต่อ */ };
+  $('btnGoPlots') && ($('btnGoPlots').onclick = function () { A.setTab('plots'); });
 
   // ---------------- wiring ทั้งหมด ----------------
   function wire() {
@@ -686,6 +690,7 @@
     $('btnMenu').onclick = function () { $('panel').classList.toggle('collapsed'); setTimeout(function () { M.map().invalidateSize(); }, 280); };
 
     // map buttons
+    $('saveChip').onclick = function () { A.saveNow(false).catch(function () {}); };
     $('btnLayers').onclick = function () {
       var a = M.toggleLayer();
       $('layerLabel').textContent = a === 'sat' ? 'ดาว' : 'ถนน';
@@ -723,7 +728,7 @@
     };
     $('fabCalc').onclick = function () {
       var p = S.selected();
-      if (!p) { A.toast('เลือกแปลงก่อน', 'warn'); return; }
+      if (!p) { A.setTab('plots'); A.toast('เลือก/วาดแปลงก่อน แล้วค่อยคำนวณ', 'warn'); return; }
       A.setTab('grid'); A.calcGridForPlot(p.id, { prevCount: undefined });
     };
 
@@ -751,14 +756,13 @@
     document.querySelectorAll('[data-emode]').forEach(function (b) {
       b.onclick = function () { var m = EMAP[b.dataset.emode]; A.setTool(m); if (m === 'moveTree') pendingMovePid = null; };
     });
-    $('chkShowViol').onchange = function () {
-      // toggle: ปกติก็แสดงแดงอยู่แล้ว — ปุ่มนี้จะ zoom ไปจุดผิดระยะแรกของแปลงที่เลือก
-      if (!this.checked) return;
-      var p = S.selected(); if (!p) return;
+    $('btnJumpViol').onclick = function () {
+      var p = S.selected(); if (!p) { A.setTab('plots'); A.toast('เลือกแปลงก่อน', 'warn'); return; }
       var v = S.validatePlot(p.id);
-      if (!v.length) { A.toast('ไม่มีจุดผิดระยะในแปลงนี้', 'ok'); this.checked = false; return; }
+      if (!v.length) { A.toast('✓ ไม่พบจุดผิดระยะในแปลงนี้', 'ok'); return; }
       var q = p.points.filter(function (x) { return x.id === v[0].pid; })[0];
-      if (q) { M.map().setView([q.lat, q.lng], 19); focusTree(p.id, q.id); }
+      if (q) { M.map().setView([q.lat, q.lng], Math.max(M.map().getZoom(), 19)); focusTree(p.id, q.id); A.toast('พาไปต้นผิดระยะ (ห่าง ' + v[0].dist.toFixed(2) + ' ม.)'); }
+      this.scrollIntoView({ block: 'nearest' });
     };
     $('btnClearPoints').onclick = function () {
       var p = S.selected(); if (!p || !p.points.length) { A.toast('แปลงนี้ยังไม่มีจุดปลูก', 'warn'); return; }
@@ -813,8 +817,12 @@
     };
     $('chkBorder').onchange = function () { var p = S.selected(); if (p) S.updateGrid(p.id, { includeBorder: this.checked }); };
     $('btnCalcGrid').onclick = function () {
-      var p = S.selected(); if (!p) { A.toast('เลือกแปลงก่อน', 'warn'); return; }
+      var p = S.selected(); if (!p) { A.setTab('plots'); A.toast('เลือก/วาดแปลงก่อน แล้วค่อยคำนวณ', 'warn'); return; }
       A.calcGridForPlot(p.id);
+    };  $('fabCalc').onclick = function () {
+      var p = S.selected();
+      if (!p) { A.setTab('plots'); A.toast('เลือก/วาดแปลงก่อน แล้วค่อยคำนวณ', 'warn'); return; }
+      A.setTab('grid'); A.calcGridForPlot(p.id, { prevCount: undefined });
     };
     $('btnPickOrigin').onclick = function () {
       if (!S.selected()) { A.toast('เลือกแปลงก่อน', 'warn'); return; }
@@ -972,6 +980,11 @@
     ensureDrawBtns();
     wire();
 
+    var coachEl = $('coach');
+    try {
+      if (!localStorage.getItem('pp-coach') && coachEl) coachEl.hidden = false;
+      $('coachX').onclick = function () { coachEl.hidden = true; try { localStorage.setItem('pp-coach', '1'); } catch (e) {} };
+    } catch (e) {}
     Store.open().then(function () {
       $('storageBackend').textContent = Store.backend() + (Store.backend() === 'IndexedDB' ? '' : ' (fallback)');
       return Store.list();
@@ -986,8 +999,10 @@
       }
       S.newProject();
       setSaveState('', 'พร้อมใช้งาน');
+      try { if (!localStorage.getItem('pp-coach') && coachEl) coachEl.hidden = false; } catch (e) {}
     }).catch(function () {
       S.newProject();
+      try { if (!localStorage.getItem('pp-coach') && coachEl) coachEl.hidden = true ? false : false; } catch (e) {}
     }).then(function () {
       M.refreshAll();
       A.refreshAll();
