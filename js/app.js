@@ -23,8 +23,11 @@
     var input = $('dlgInputValue');
     setTimeout(function () { input.focus(); input.select(); }, 30);
     input.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); $('dlgInputOk').click(); } };
-    $('dlgInput').querySelector('form').onsubmit = function () {
-      if (dlg.returnValue === 'ok' && input.value.trim()) cb(input.value.trim());
+    // สำคัญ: method=dialog ตั้ง returnValue *หลัง* submit event → ต้องอ่านจาก e.submitter (bug ผู้ใช้จริง: OK ไม่ทำงาน)
+    var form = $('dlgInput').querySelector('form');
+    form.onsubmit = function (e) {
+      var sub = (e && e.submitter && e.submitter.value) || dlg.returnValue;
+      if (sub === 'ok' && input.value.trim()) { cb(input.value.trim()); }
       dlg.close();
     };
   }
@@ -984,6 +987,7 @@
   function boot() {
     netAware();
     M.init($('map'));
+    M.map().setView([9.5, 99.0], 10); // ฐาน-view: แรกเปิดห้าม แผนที่ไม่มี center
     M.onTileError = function () { $('netBanner').hidden = false; };
     $('netBanner').onclick = function () { location.reload(); };
     ensureDrawBtns();
