@@ -85,14 +85,14 @@
         fillOpacity: 0.95, className: 'tree-m'
       });
       m.__pid = q.id; m.__plotId = p.id; m.__ll = [q.lat, q.lng];
-      m.on('click', function (e) {
-        // v3.9: canvas/poly consume ก่อนถึง map เสมอ → จัดการให้จบตรงนี้
+            m.__ch = function (e) {
         if (M.isDrawing && M.isDrawing()) { L.DomEvent.stopPropagation(e); onDrawClick(e); return; }
         if (M.onTreeClick) {
           L.DomEvent.stopPropagation(e);
           M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
         }
-      });
+      };
+      if (M._treesInteractive === false) { /* stays detached */ } else { m.on('click', m.__ch); }
       m.bindTooltip('ต้น #' + (i + 1) + (q.manual ? ' (ปรับมือ)' : '') +
         (isViol ? '<br><b style="color:#fecaca">ห่างต้นข้างเคียง ' + violByPid[q.id].toFixed(2) + ' ม. < ' + p.grid.spacing + ' ม.</b>' : ''),
         { direction: 'top', className: 'edge-label' });
@@ -200,7 +200,13 @@
   var draw = null; // {mode:'plot'|'hole', pts:[], live:layer refs}
   M.isDrawing = function () { return !!draw; };
   M.setTreesInteractive = function (on) {
-    canvasRenderer.options.interactive = !!on;
+    // Leaflet: ถ้า layer ไม่มี listener สำหรับ type นี้ → canvases ส่งต่อ event ให้ map เอง
+    treeLayer.getLayers().forEach(function (l) {
+      if (!l.__ch) return;
+      if (on) { if (!l.listens('click', true)) l.on('click', l.__ch); }
+      else { if (l.listens('click', true)) l.off('click', l.__ch); }
+    });
+    M._treesInteractive = !!on;
   };
   M.startDraw = function (mode) {
     M.cancelDraw();

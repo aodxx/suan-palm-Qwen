@@ -4,7 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
-  root.PP_BUILD = 'v3.12';
+  root.PP_BUILD = 'v3.13';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -112,7 +112,7 @@
   A.setTool = function (t) {
     A.tool = t;
     A.originPicking = (t === 'pickOrigin');
-    if (M.setTreesInteractive) M.setTreesInteractive(t !== 'addTree' && t !== 'pickOrigin');
+    if (M.setTreesInteractive) M.setTreesInteractive(t !== 'addTree' && t !== 'pickOrigin' && !pendingMovePid);
     document.querySelectorAll('[data-emode]').forEach(function (b) { b.classList.toggle('active', EMAP[b.dataset.emode] === t); });
     $('fabDraw').classList.toggle('on', t === 'drawPlot');
     $('btnPickOrigin').classList.toggle('on', A.originPicking);
@@ -155,12 +155,15 @@
         } else if (pendingMovePid) {
           moveTreeTo(ll);
         } else {
-          if (hitPid) { pendingMovePid = hitPid; var p4 = S.plot(plotOf(hitPid)); if (p4) { S.select(p4.id); focusTree(p4.id, hitPid); M.refreshPlot(p4.id, true); } banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + hitPid); return; }
+          if (hitPid) { pendingMovePid = hitPid; var p4 = S.plot(plotOf(hitPid)); if (p4) { S.select(p4.id); focusTree(p4.id, hitPid); M.refreshPlot(p4.id, true); }
+            if (M.setTreesInteractive) M.setTreesInteractive(false);
+            banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + hitPid); return; }
           var p2 = S.selected(); if (!p2) { A.toast('เลือกแปลงก่อน', 'warn'); break; }
           var pr = projRings(p2), me2 = pr.proj.toXY(ll[0], ll[1]);
           var best = null, bd = 15;
           p2.points.forEach(function (q) { var o = pr.proj.toXY(q.lat, q.lng); var d2 = Math.hypot(o.x - me2.x, o.y - me2.y); if (d2 < bd) { bd = d2; best = q; } });
-          if (best) { pendingMovePid = best.id; M.selectedTreeId = best.id; M.selectedTreePlot = p2.id; focusTree(p2.id, best.id); M.refreshPlot(p2.id, true); banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + best.id); }
+          if (best) { pendingMovePid = best.id; M.selectedTreeId = best.id; M.selectedTreePlot = p2.id; focusTree(p2.id, best.id); M.refreshPlot(p2.id, true);
+            if (M.setTreesInteractive) M.setTreesInteractive(false); banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + best.id); }
           else { banner('ไม่พบต้นในรัศมี 15 ม. — แตะใกล้ต้นที่ต้องการย้าย'); }
         }
         break;
@@ -210,6 +213,7 @@
     S.movePoint(p.id, pendingMovePid, ll[0], ll[1]);
     afterPointEdit(p.id, 'ย้ายต้น #' + pendingMovePid);
     pendingMovePid = null;
+    if (M.setTreesInteractive) M.setTreesInteractive(A.tool !== 'addTree' && A.tool !== 'pickOrigin');
   }
   function projRings(p) {
     var c = G.centroid(p.ring);
