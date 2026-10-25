@@ -4,7 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
-  root.PP_BUILD = 'v3.14';
+  root.PP_BUILD = 'v3.15';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -208,9 +208,12 @@
     afterPointEdit(target.id, q ? 'เพิ่มต้น #' + q.id : '');
   }
   function moveTreeTo(ll) {
-    if (!ll || ll.lat == null) return;
+    // รับได้ทั้ง [lat,lng] และ {lat,lng} — บั๊ก v3.4: ตรวจ .lat บน array = undefined → return เงียบทุกการวาง
+    if (!ll) return;
+    var la = Array.isArray(ll) ? ll[0] : ll.lat, ln = Array.isArray(ll) ? ll[1] : ll.lng;
+    if (la == null || ln == null || !isFinite(la) || !isFinite(ln)) return;
     var p = S.selected(); if (!p || !pendingMovePid) return;
-    S.movePoint(p.id, pendingMovePid, ll[0], ll[1]);
+    S.movePoint(p.id, pendingMovePid, la, ln);
     afterPointEdit(p.id, 'ย้ายต้น #' + pendingMovePid);
     pendingMovePid = null;
     if (M.setTreesInteractive) M.setTreesInteractive(A.tool !== 'addTree' && A.tool !== 'pickOrigin');
