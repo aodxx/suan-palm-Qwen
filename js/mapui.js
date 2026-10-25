@@ -92,7 +92,8 @@
           M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
         }
       };
-      if (M._treesInteractive === false) { /* stays detached */ } else { m.on('click', m.__ch); }
+      m.on('click', m.__ch);
+      if (M._treesInteractive === false) m.options.interactive = false;
       m.bindTooltip('ต้น #' + (i + 1) + (q.manual ? ' (ปรับมือ)' : '') +
         (isViol ? '<br><b style="color:#fecaca">ห่างต้นข้างเคียง ' + violByPid[q.id].toFixed(2) + ' ม. < ' + p.grid.spacing + ' ม.</b>' : ''),
         { direction: 'top', className: 'edge-label' });
@@ -200,12 +201,10 @@
   var draw = null; // {mode:'plot'|'hole', pts:[], live:layer refs}
   M.isDrawing = function () { return !!draw; };
   M.setTreesInteractive = function (on) {
-    // Leaflet: ถ้า layer ไม่มี listener สำหรับ type นี้ → canvases ส่งต่อ event ให้ map เอง
-    treeLayer.getLayers().forEach(function (l) {
-      if (!l.__ch) return;
-      if (on) { if (!l.listens('click', true)) l.on('click', l.__ch); }
-      else { if (l.listens('click', true)) l.off('click', l.__ch); }
-    });
+    // วิธีที่ Leaflet ออกแบบไว้: Canvas._hitTest ข้าม layer ที่ options.interactive=false
+    // → ไม่มี target → map ได้ click ดิบ (latlng ตรงเมาส์) ทันที
+    treeLayer.getLayers().forEach(function (l) { if (l.options) l.options.interactive = !!on; });
+    plotLayer.getLayers().forEach(function (l) { if (l.__plotId && l.options) l.options.interactive = !!on; });
     M._treesInteractive = !!on;
   };
   M.startDraw = function (mode) {
