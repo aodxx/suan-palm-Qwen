@@ -143,33 +143,11 @@
     }
   };
   M.onTreeClick = function (plotId, pid, ll) {
-    if (A.tool === 'pickOrigin' && ll) { // ชี้จุดเริ่ม grid ทับตำแหน่งต้น: ใช้พิกัดนั้น
-      var p0 = S.selected();
-      if (p0) { p0.grid.originLL = ll; S.markDirty(); M.showOriginHandle(p0.id, ll); A.refreshGridPanel();
-        A.setTool('select'); A.toast('ตั้งจุดเริ่ม Grid แล้ว — กดคำนวณใหม่เพื่อดูผล', 'ok'); return; }
-    }
-    if (A.tool === 'addTree' && ll) { addTreeAt(ll, plotId); return; }
-    if (A.tool === 'delTree') {}
-    switch (A.tool) {
-      case 'select': case 'edit:select': S.select(plotId); focusTree(plotId, pid); break;
-      case 'delTree': S.select(plotId); S.removePoint(plotId, pid); afterPointEdit(plotId, 'ลบต้น #' + pid); break;
-      case 'moveTree':
-        S.select(plotId);
-        if (pendingMovePid && pendingMovePid === pid) {
-          // แตะต้นเดิมซ้ำ = ยกเลิก
-          pendingMovePid = null; A.setTool('moveTree'); banner('แตะตำแหน่งใหม่บนแผนที่เพื่อย้ายต้น');
-        } else if (pendingMovePid && ll) {
-          // มีต้นจับไว้แล้ว แตะตรงไหน也算จุดหมาย (แปลงหนาแน่น: แตะโดนต้นอื่นบ่อย — ต้องย้ายได้ ไม่ใช่สลับเป้าหมาย)
-          if (typeof q_lat === 'undefined') {} // no-op
-          moveTreeTo([ll[0] + 0.0000001, ll[1] + 0.0000001]); // เลื่อน 1 ซม. กันระยะเท่า 0
-          pendingMovePid = null;
-          A.setTool('moveTree');
-        } else if (!pendingMovePid && pid) {
-          pendingMovePid = pid; focusTree(plotId, pid); banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + pid);
-        }
-        break;
-      default: S.select(plotId); focusTree(plotId, pid);
-    }
+    // v3.9: canvas consumes events เมื่อ hit เจอชั้น — route ทุกโหมดผ่าน fn เดียว
+    if (['addTree', 'pickOrigin'].indexOf(A.tool) >= 0) { handlePointAt(ll, pid); return; }
+    if (A.tool === 'moveTree') { handlePointAt(ll, pid); return; }
+    if (A.tool === 'delTree') { S.select(plotId); S.removePoint(plotId, pid); afterPointEdit(plotId, 'ลบต้น #' + pid); return; }
+    S.select(plotId); focusTree(plotId, pid);
   };
   function addTreeAt(ll, plotId) {
     var target = S.plot(plotId);
@@ -874,33 +852,7 @@
 
     // map global clicks — decision hub เดียวของโหมดชี้ตำแหน่ง
     M.map().on('click', function (e) {
-      var ll = [e.latlng.lat, e.latlng.lng];
-      switch (A.tool) {
-        case 'pickOrigin': {
-          var p = S.selected(); if (!p) return;
-          S.updateGrid(p.id, { originLL: ll });
-          A.originPicking = false;
-          M.showOriginHandle(p.id, ll);
-          A.setTool('select');
-          A.refreshGridPanel();
-          A.toast('ตั้งจุดเริ่ม Grid แล้ว — กดคำนวณใหม่เพื่อดูผล', 'ok');
-          break;
-        }
-        case 'addTree': addTreeAt(ll, null); break;
-        case 'moveTree':
-          if (pendingMovePid) { moveTreeTo(ll); }
-          else {
-            // arming: หาต้นใกล้สุดในรัศมี 15 ม. จากที่แตะ (บนพื้นที่ต้นหนาแน่น = ได้ต้นที่ต้องการแน่นอน)
-            var p2 = S.selected(); if (!p2) { A.toast('เลือกแปลงก่อน', 'warn'); break; }
-            var proj = projRings(p2).proj, me = proj.toXY(ll[0], ll[1]);
-            var best = null, bd = 15;
-            p2.points.forEach(function (q) { var o = proj.toXY(q.lat, q.lng); var d = Math.hypot(o.x - me.x, o.y - me.y); if (d < bd) { bd = d; best = q; } });
-            if (best) { pendingMovePid = best.id; M.selectedTreeId = best.id; M.selectedTreePlot = p2.id; focusTree(p2.id, best.id); M.refreshPlot(p2.id, true); banner('แตะตำแหน่งใหม่เพื่อย้ายต้น #' + best.id); }
-            else { M.selectedTreeId = null; M.refreshPlot(p2.id ? p2.id : '', true); banner('ไม่พบต้นในรัศมี 15 ม. — แตะใกล้ต้นที่ต้องการย้าย'); }
-          }
-          break;
-        case 'select': M.selectedTreeId = null; break;
-      }
+      handlePointAt([e.latlng.lat, e.latlng.lng]);
     });
 
 M.map().on('mousemove', function (e) {

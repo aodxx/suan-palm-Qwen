@@ -86,11 +86,8 @@
       });
       m.__pid = q.id; m.__plotId = p.id; m.__ll = [q.lat, q.lng];
       m.on('click', function (e) {
-        var app = root.PalmApp;
-        var tl = app ? app.tool : 'select';
-        // consume เฉพาะโหมดจัดการต้นตรงตัว; ที่เหลือปล่อย bubbling ให้ map hub
-        var consume = (tl === 'select' || tl === 'delTree' || (tl === 'moveTree' && app.moveArmed && !app.moveArmed()));
-        if (!consume) return; // addTree, pickOrigin, moveTree(armed), ขณะวาด → raw latlng ถึง map
+        // v3.9: canvas/poly consume ก่อนถึง map เสมอ → จัดการให้จบตรงนี้
+        if (M.isDrawing && M.isDrawing()) { L.DomEvent.stopPropagation(e); onDrawClick(e); return; }
         if (M.onTreeClick) {
           L.DomEvent.stopPropagation(e);
           M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
@@ -116,11 +113,8 @@
     });
     poly.__plotId = p.id;
     poly.on('click', function (e) {
-      var app = root.PalmApp;
-      var tl = app ? app.tool : 'select';
-      //single source of truth: โหมดชี้ตำแหน่ง/ขณะวาด → bubbling ขึ้น map hub (latlng ดิบ)
-      if (['addTree', 'pickOrigin', 'moveTree'].indexOf(tl) >= 0) return;
-      if (app && app.isDrawingPt && app.isDrawingPt()) return;
+      // v3.9: poly เป็น target ที่ Leaflet เลือก — จัดการเองทุกกรณี
+      if (M.isDrawing && M.isDrawing()) { L.DomEvent.stopPropagation(e); onDrawClick(e); return; }
       if (M.onMapPolyClick) M.onMapPolyClick(p.id, [e.latlng.lat, e.latlng.lng], e);
     });
     plotLayer.addLayer(poly);
