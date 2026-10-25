@@ -99,8 +99,8 @@
                  redo: function (o) { var p = S.plot(o.plotId); if (p) { var i = idxOf(p.points, function (q) { return q.id === o.point.id; }); if (i >= 0) p.points.splice(i, 1); } } },
     movePoint: { undo: function (o) { var p = S.plot(o.plotId); if (p) { var t = p.points.filter(function (q) { return q.id === o.pid; })[0]; if (t) { t.lat = o.from.lat; t.lng = o.from.lng; t.manual = o.wasManual; } } },
                  redo: function (o) { var p = S.plot(o.plotId); if (p) { var t = p.points.filter(function (q) { return q.id === o.pid; })[0]; if (t) { t.lat = o.to.lat; t.lng = o.to.lng; t.manual = true; } } } },
-    setPoints: { undo: function (o) { var p = S.plot(o.plotId); if (p) p.points = o.prev; },
-                 redo: function (o) { var p = S.plot(o.plotId); if (p) p.points = o.next; } },
+    setPoints: { undo: function (o) { var p = S.plot(o.plotId); if (p) { p.points = o.prev; S.fixPointIds(p); } },
+                 redo: function (o) { var p = S.plot(o.plotId); if (p) { p.points = o.next; S.fixPointIds(p); } } },
     editPlot:  { undo: function (o) { applyEdit(o.plotId, o.prev); }, redo: function (o) { applyEdit(o.plotId, o.next); } }
   };
   function applyEdit(plotId, snap) {
@@ -127,6 +127,13 @@
     S._suppressUndo = true; applyDir(op, 'redo'); S._suppressUndo = false;
     S.undoStack.push(op); S.emit('undoState');
     return op;
+  };
+
+  S.fixPointIds = function (p) {
+    (p.points || []).forEach(function (q) {
+      if (q.id === undefined || q.id === null || !isFinite(q.id)) q.id = S._treeSeq++;
+      S._treeSeq = Math.max(S._treeSeq, (q.id | 0) + 1);
+    });
   };
 
   // ---------------- mutations (forward ops — record undo data) ----------------
@@ -216,8 +223,10 @@
   /** เขียนจุดทั้งชุด (grid regen / clearPoints) — เก็บ undo อัตโนมัติ */
   S.setPoints = function (plotId, nextArr) {
     var p = S.plot(plotId); if (!p) return;
-    record({ type: 'setPoints', plotId: p.id, prev: p.points, next: nextArr.map(pointSnap) });
-    p.points = nextArr.map(function (q) { return { lat: q.lat, lng: q.lng, id: q.id || S._treeSeq++, manual: !!q.manual }; });
+    var prevPoints = p.points;
+    var built = nextArr.map(function (q) { return { lat: q.lat, lng: q.lng, id: q.id || S._treeSeq++, manual: !!q.manual }; });
+    record({ type: 'setPoints', plotId: p.id, prev: prevPoints, next: built.slice() });
+    p.points = built;
     S.markDirty(); S.emit('points', { plotId: p.id });
   };
   S.updateGrid = function (plotId, patch) {
