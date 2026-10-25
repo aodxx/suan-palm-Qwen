@@ -19,7 +19,10 @@
   // ============ INIT ============
   M.init = function (el) {
     map = new L.Map(el, { zoomControl: false, attributionControl: true, tap: true, minZoom: 3, maxZoom: 20 });
-    canvasRenderer = L.canvas({ padding: 0.5, tolerance: 6 });
+    // pane เฉพาะจุดปลูก: เหนือ overlayPane (400) เสมาเสมอ — DOM hit ไม่แย่งกันกับ SVG polygon
+    var treePane = map.createPane('pp-trees');
+    treePane.style.zIndex = 650;
+    canvasRenderer = L.canvas({ pane: 'pp-trees', padding: 0.5, tolerance: 8 });
     LAYERS.sat = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       { maxZoom: 19, attribution: 'ภาพถ่ายดาวเทียม &copy; Esri, Maxar, Earthstar Geographics' });
