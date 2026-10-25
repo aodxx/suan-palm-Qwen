@@ -199,6 +199,9 @@
   // ============ DRAW POLYGON (วาดแปลง / hole) ============
   var draw = null; // {mode:'plot'|'hole', pts:[], live:layer refs}
   M.isDrawing = function () { return !!draw; };
+  M.setTreesInteractive = function (on) {
+    canvasRenderer.options.interactive = !!on;
+  };
   M.startDraw = function (mode) {
     M.cancelDraw();
     draw = { mode: mode, pts: [] };

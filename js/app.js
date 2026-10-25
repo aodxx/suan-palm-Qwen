@@ -4,7 +4,7 @@
   var G = root.PalmGeo, Grid = root.PalmGrid, S = root.PalmState, M = root.PalmMapUI, IO = root.PalmIO, Store = root.PalmStore;
   var $ = function (id) { return document.getElementById(id); };
   var A = {}; // namespace app
-  root.PP_BUILD = 'v3.11';
+  root.PP_BUILD = 'v3.12';
   var EMAP = { 'select': 'select', add: 'addTree', move: 'moveTree', del: 'delTree' };
 
   // ---------------- toast / input helpers ----------------
@@ -112,6 +112,7 @@
   A.setTool = function (t) {
     A.tool = t;
     A.originPicking = (t === 'pickOrigin');
+    if (M.setTreesInteractive) M.setTreesInteractive(t !== 'addTree' && t !== 'pickOrigin');
     document.querySelectorAll('[data-emode]').forEach(function (b) { b.classList.toggle('active', EMAP[b.dataset.emode] === t); });
     $('fabDraw').classList.toggle('on', t === 'drawPlot');
     $('btnPickOrigin').classList.toggle('on', A.originPicking);
@@ -175,14 +176,8 @@
   function mapClickLatlng(e) { return [e.latlng.lat, e.latlng.lng]; }
 
   M.onMapPolyClick = function (plotId, ll, e) {
-    switch (A.tool) {
-      case 'select': S.select(plotId); break;
-      case 'addTree': addTreeAt(ll, plotId); break;
-      case 'delTree': /* handled at marker level */ break;
-      case 'moveTree': if (pendingMovePid) moveTreeTo(ll); break;
-      case 'editVertex': S.select(plotId); break;
-      default: S.select(plotId);
-    }
+    if (['addTree', 'pickOrigin', 'moveTree', 'delTree'].indexOf(A.tool) >= 0) { handlePointAt(ll); return; }
+    S.select(plotId);
   };
   M.onTreeClick = function (plotId, pid, ll) {
     // v3.9: canvas consumes events เมื่อ hit เจอชั้น — route ทุกโหมดผ่าน fn เดียว
