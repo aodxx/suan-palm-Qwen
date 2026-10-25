@@ -81,9 +81,12 @@
         fillColor: isSel ? '#3b82f6' : (isViol ? '#dc2626' : (q.manual ? '#2563eb' : '#22c55e')),
         fillOpacity: 0.95, className: 'tree-m'
       });
-      m.__pid = q.id; m.__plotId = p.id;
+      m.__pid = q.id; m.__plotId = p.id; m.__ll = [q.lat, q.lng];
       m.on('click', function (e) {
-        if (M.onTreeClick) { L.DomEvent.stopPropagation(e); M.onTreeClick(p.id, q.id); }
+        if (M.onTreeClick) {
+          if (['pickOrigin', 'addTree'].indexOf(root.PalmApp ? root.PalmApp.tool : '') >= 0) return; // ให้ map handler จัดการ
+          L.DomEvent.stopPropagation(e); M.onTreeClick(p.id, q.id, [q.lat, q.lng]);
+        }
       });
       m.bindTooltip('ต้น #' + (i + 1) + (q.manual ? ' (ปรับมือ)' : '') +
         (isViol ? '<br><b style="color:#fecaca">ห่างต้นข้างเคียง ' + violByPid[q.id].toFixed(2) + ' ม. < ' + p.grid.spacing + ' ม.</b>' : ''),

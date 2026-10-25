@@ -139,7 +139,13 @@
       default: S.select(plotId);
     }
   };
-  M.onTreeClick = function (plotId, pid) {
+  M.onTreeClick = function (plotId, pid, ll) {
+    if (A.tool === 'pickOrigin' && ll) { // ชี้จุดเริ่ม grid ทับตำแหน่งต้น: ใช้พิกัดนั้น
+      var p0 = S.selected();
+      if (p0) { p0.grid.originLL = ll; S.markDirty(); M.showOriginHandle(p0.id, ll); A.refreshGridPanel();
+        A.setTool('select'); A.toast('ตั้งจุดเริ่ม Grid แล้ว — กดคำนวณใหม่เพื่อดูผล', 'ok'); return; }
+    }
+    if (A.tool === 'addTree' && ll) { addTreeAt(ll, plotId); return; }
     if (A.tool === 'delTree') {}
     switch (A.tool) {
       case 'select': case 'edit:select': S.select(plotId); focusTree(plotId, pid); break;
@@ -729,6 +735,7 @@
     $('fabCalc').onclick = function () {
       var p = S.selected();
       if (!p) { A.setTab('plots'); A.toast('เลือก/วาดแปลงก่อน แล้วค่อยคำนวณ', 'warn'); return; }
+      $('fabCalc').classList.remove('pulse');
       A.setTab('grid'); A.calcGridForPlot(p.id, { prevCount: undefined });
     };
 
@@ -818,10 +825,12 @@
     $('chkBorder').onchange = function () { var p = S.selected(); if (p) S.updateGrid(p.id, { includeBorder: this.checked }); };
     $('btnCalcGrid').onclick = function () {
       var p = S.selected(); if (!p) { A.setTab('plots'); A.toast('เลือก/วาดแปลงก่อน แล้วค่อยคำนวณ', 'warn'); return; }
+      $('fabCalc').classList.remove('pulse');
       A.calcGridForPlot(p.id);
     };  $('fabCalc').onclick = function () {
       var p = S.selected();
       if (!p) { A.setTab('plots'); A.toast('เลือก/วาดแปลงก่อน แล้วค่อยคำนวณ', 'warn'); return; }
+      $('fabCalc').classList.remove('pulse');
       A.setTab('grid'); A.calcGridForPlot(p.id, { prevCount: undefined });
     };
     $('btnPickOrigin').onclick = function () {
